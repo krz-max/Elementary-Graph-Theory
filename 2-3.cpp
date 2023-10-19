@@ -2,6 +2,25 @@
 
 using namespace std;
 
+template <class T>
+void print_iterator(T iterable)
+{
+    for (auto it : iterable)
+    {
+        cout << it << " ";
+    }
+    cout << endl;
+}
+
+struct node
+{
+    node(){};
+    int degree;
+    int visited;
+    vector<int> joint_branch_length;
+    vector<int> edges;
+};
+
 class Key_Blueprint
 {
 public:
@@ -9,76 +28,134 @@ public:
     void build_key_blueprint()
     {
         cin >> num_of_nodes;
-        graph = vector<vector<int>>(num_of_nodes);
-        for(int i = 0; i < num_of_nodes; i++)
+        nodes = vector<node>(num_of_nodes);
+        for (int i = 0; i < num_of_nodes - 1; i++)
         {
             int u, v;
             cin >> u >> v;
-            graph[u].push_back(v);
-            graph[v].push_back(u);
+            nodes[u].degree++;
+            nodes[u].edges.push_back(v);
+            nodes[v].degree++;
+            nodes[v].edges.push_back(u);
         }
-        construct_joint_nodes();
-        print_joint_nodes();
-        construct_possible_keys();
+        remove_leaves();
+        // statistics();
     };
-    bool compare_with_keys(const vector<int>& another_key){
-        for(const auto& vec : possible_keys){
-            int n = vec.size(), m = another_key.size();
-            if(n != m) continue;
-            bool same = true;
-            for(int i = 0; i < n; i++){
-                if(vec[i] != another_key[i]){
-                    same = false;
-                    break;
+    // a joint node has to be reeached by leaf nodes two times for it to be boundary joint node(i.e. it has two branches that ends in leaf node).
+    // we remove leaves, update the times the nodes were visited in the traversal.
+    // If a node is visited:
+    // 1. It's a middle node, which has degree 2. Just push it into the queue and iterate its neighbor in the next cycle.
+    // 2. It's a joint in the path(degree=3). Label it to show that it was visited, and that it becomes a "candidate" of boundary joint node.
+    void remove_leaves()
+    {
+        queue<int> leaves;
+        vector<int> length(num_of_nodes, 0);
+        for (int i = 0; i < num_of_nodes; i++)
+        {
+            if (nodes[i].degree == 1)
+            {
+                leaves.push(i);
+                nodes[i].visited = 2;
+                nodes[i].joint_branch_length.push_back(0);
+            }
+        }
+
+        while (!leaves.empty())
+        {
+            int cur_node = leaves.front();
+            leaves.pop();
+            for (auto neighbor : nodes[cur_node].edges)
+            {
+                if (nodes[neighbor].visited == 0)
+                {
+                    nodes[neighbor].visited = 1;
+                    if (nodes[neighbor].degree == 2)
+                    {
+                        leaves.push(neighbor);
+                        nodes[neighbor].visited = 2;
+                    }
+                    nodes[neighbor].joint_branch_length.push_back(nodes[cur_node].joint_branch_length[0] + 1);
+                }
+                else if (nodes[neighbor].visited == 1 && nodes[neighbor].degree == 3)
+                {
+                    joint_nodes_idx.push_back(neighbor);
+                    nodes[neighbor].joint_branch_length = {nodes[neighbor].joint_branch_length[0], nodes[cur_node].joint_branch_length[0] + 1};
+                    nodes[neighbor].visited = 2;
                 }
             }
-            if(same) return true;
+        }
+        leaves.push(joint_nodes_idx[0]);
+        while (!leaves.empty())
+        {
+            int cur_node = leaves.front();
+            leaves.pop();
+            for (auto neighbor : nodes[cur_node].edges)
+            {
+                if (nodes[neighbor].visited != 2)
+                {
+                    leaves.push(neighbor);
+                    if (nodes[neighbor].degree == 3)
+                    {
+                        joint_nodes_idx.push_back(neighbor);
+                    }
+                    nodes[neighbor].visited = 2;
+                }
+            }
+        }
+        return;
+    };
+    bool compare_with_keys(const vector<int> &another_key)
+    {
+        if (another_key.size() != joint_nodes_idx.size())
+            return false;
+        int n = another_key.size();
+        if ((another_key[0] == nodes[joint_nodes_idx[0]].joint_branch_length[0] || another_key[0] == nodes[joint_nodes_idx[0]].joint_branch_length[1]) && (another_key[n - 1] == nodes[joint_nodes_idx[1]].joint_branch_length[0] || another_key[n - 1] == nodes[joint_nodes_idx[1]].joint_branch_length[1]))
+        {
+            for (int i = 1; i < n - 1; i++)
+            {
+                if (another_key[i] != nodes[joint_nodes_idx[i + 1]].joint_branch_length[0])
+                    return false;
+            }
+            return true;
+        }
+        else if ((another_key[n - 1] == nodes[joint_nodes_idx[0]].joint_branch_length[0] || another_key[n - 1] == nodes[joint_nodes_idx[0]].joint_branch_length[1]) && (another_key[0] == nodes[joint_nodes_idx[1]].joint_branch_length[0] || another_key[0] == nodes[joint_nodes_idx[1]].joint_branch_length[1]))
+        {
+            for (int i = 1; i < n - 1; i++)
+            {
+                if (another_key[n - 1 - i] != nodes[joint_nodes_idx[i + 1]].joint_branch_length[0])
+                    return false;
+            }
+            return true;
         }
         return false;
     }
-    void print_joint_nodes(){
-        for(const auto& node:joint_nodes){
-            cout << node._self << ", ";
-            for(auto it:node._edges) cout << it << ", ";
-            for(auto it:node._branch_len) cout << it << ", ";
-            cout << endl;
+    void statistics()
+    {
+        cout << "Boundary Index: " << joint_nodes_idx[0] << ", " << joint_nodes_idx[1] << endl;
+        for (int i = 0; i < num_of_nodes; i++)
+        {
+            auto &cur_node = nodes[i];
+            cout << "Node Index: " << i << endl;
+            cout << "Node Degree: " << cur_node.degree << endl;
+            if (cur_node.degree == 3)
+            {
+                cout << "Branch Length: ";
+                for (auto it : cur_node.joint_branch_length)
+                {
+                    cout << it << ", ";
+                }
+                cout << endl;
+            }
+            cout << "Node Edges: ";
+            print_iterator<vector<int>>(cur_node.edges);
+            cout << "---------" << endl;
         }
     }
+
 private:
     int num_of_nodes;
-    struct joint_node{
-        joint_node(int self, vector<int> edges){
-            _self = self;
-            _edges = edges;
-            sort(_edges.begin(), _edges.end());
-            _branch_len = construct_b_len();
-        };
-        int _self;
-        bool _is_border;
-        vector<int> _edges;
-        vector<int> _branch_len;
-        vector<int> construct_b_len(){
-            // to-do
-            // update _is_border here
-            return {-1, -1, -1};
-        };
-    };
-    vector<joint_node> joint_nodes;
-    vector<vector<int>> graph;
-    vector<vector<int>> possible_keys;
-
-    void construct_joint_nodes(){
-        for(int i = 0; i < num_of_nodes; i++){
-            if(graph[i].size() == 3){
-                joint_nodes.push_back(joint_node{i, graph[i]});
-            }
-        }
-    };
-    void construct_possible_keys(){
-
-        return ;
-    };
-
+    vector<node> nodes; // id->node_info
+    vector<int> joint_nodes_idx;
 };
 int main()
 {
@@ -87,12 +164,16 @@ int main()
     int m;
     cin >> m;
     vector<int> Drizella(m, 0);
-    for(int i = 0; i < m; i++) cin >> Drizella[i];
-    if(Cinderella.compare_with_keys(Drizella)){
+    for (int i = 0; i < m; i++)
+        cin >> Drizella[i];
+    if (Cinderella.compare_with_keys(Drizella))
+    {
         cout << "YES";
     }
-    else{
+    else
+    {
         cout << "NO";
     }
+    cout << endl;
     return 0;
 }
