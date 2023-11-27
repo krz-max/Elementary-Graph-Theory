@@ -1,6 +1,6 @@
 #include <bits/stdc++.h>
 
-#define ull long long
+#define ll long long
 
 class UnionFind
 {
@@ -50,17 +50,17 @@ private:
     std::vector<int> rank;
 };
 
-ull minCost(std::vector<std::tuple<int, int, int>> &edges, int cities)
+ll minCost(std::vector<std::tuple<int, int, int>> &edges, int cities)
 {
     int n = cities;
     UnionFind uf(n);
-    ull totalCost = 0;
+    ll totalCost = 0;
 
     // Kruskal's algorithm to find the minimum spanning tree
     for (const auto &edge : edges)
     {
         int u, v;
-        ull cost;
+        ll cost;
         std::tie(u, v, cost) = edge;
 
         if (uf.find(u) != uf.find(v))
