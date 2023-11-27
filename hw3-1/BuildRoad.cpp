@@ -2,27 +2,22 @@
 
 #define ll long long
 
+using namespace std;
+
 class UnionFind
 {
 public:
+    UnionFind() : parent(0), rank(0){};
     UnionFind(int n) : parent(n), rank(n, 0)
     {
-        for (int i = 0; i < n; ++i)
-        {
-            parent[i] = i;
-        }
+        for (int i = 0; i < n; ++i) parent[i] = i;
     }
-    ~UnionFind() {}
-    int find(int u)
+    ll find(ll u)
     {
-        if (parent[u] != u)
-        {
-            parent[u] = find(parent[u]);
-        }
+        if (parent[u] != u) parent[u] = find(parent[u]);
         return parent[u];
     }
-
-    void unionSets(int u, int v)
+    void unionSets(ll u, ll v)
     {
         int rootU = find(u);
         int rootV = find(v);
@@ -44,77 +39,138 @@ public:
             }
         }
     }
-
-private:
-    std::vector<int> parent;
-    std::vector<int> rank;
-};
-
-ll minCost(std::vector<std::tuple<int, int, int>> &edges, int cities)
-{
-    int n = cities;
-    UnionFind uf(n);
-    ll totalCost = 0;
-
-    // Kruskal's algorithm to find the minimum spanning tree
-    for (const auto &edge : edges)
+    void setInitialRank(int minimumCostCityIdx)
     {
-        int u, v;
-        ll cost;
-        std::tie(u, v, cost) = edge;
-
-        if (uf.find(u) != uf.find(v))
-        {
-            uf.unionSets(u, v);
-            totalCost += cost;
-        }
+        this->rank[minimumCostCityIdx] = INT_MAX;
     }
 
-    return totalCost;
-}
+private:
+    vector<ll> parent;
+    vector<ll> rank;
+};
+
+class Solution
+{
+private:
+    int num_of_cities;
+    int num_of_special_offers;
+    vector<pair<ll, ll>> coins;
+    vector<pair<ll, pair<ll, ll>>> specialOffer;
+    UnionFind uf;
+
+public:
+    /**
+     * @brief Construct a new Solution object, this reads from stdin for necessary inputs
+     * @return a Solution object
+     */
+    Solution()
+    {
+        // Enter the number of queries
+        // Enter the number of cities and special offers, this will create a UnionFind object
+        cin >> num_of_cities >> num_of_special_offers;
+        // Initialize objects
+        uf = UnionFind(num_of_cities);
+        coins = vector<pair<ll, ll>>(num_of_cities);
+        specialOffer = vector<pair<ll, pair<ll, ll>>>(num_of_special_offers);
+        // Enter the cost of coins in each city
+        for (int i = 0; i < num_of_cities; ++i)
+        {
+            ll coin;
+            cin >> coin;
+            coins[i] = {coin, i};
+        }
+        // Enter the special offers
+        for (int i = 0; i < num_of_special_offers; ++i)
+        {
+            ll start, end, weight;
+            cin >> start >> end >> weight;
+            specialOffer[i] = {weight, {start - 1, end - 1}};
+        }
+        // Print the input
+        // statistics();
+    };
+    /**
+     * @brief Output the statistics of the input after reading from stdin
+     */
+    void statistics()
+    {
+        cout << "Number of cities: " << num_of_cities << endl;
+        cout << "Number of special offers: " << num_of_special_offers << endl;
+        cout << "Coins: ";
+        for (auto i : coins)
+        {
+            cout << i.first << " ";
+        }
+        cout << endl;
+        cout << "Special offers: ";
+        for (auto i : specialOffer)
+        {
+            cout << i.first << " " << i.second.first << " " << i.second.second << endl;
+        }
+        cout << endl;
+    };
+    /**
+     * @brief Solve the question
+     */
+    void BuildRoad()
+    {
+        // Sort the coins and special offers
+        sort(coins.begin(), coins.end());
+        sort(specialOffer.begin(), specialOffer.end());
+        // Kruskal's algorithm to find the minimum spanning tree
+        ll totalCost = 0;
+        int selected_edges = 0;
+        int selected_offers = 0;
+        int selected_city = 1;
+        int start_city = uf.find(coins[0].second);
+        uf.setInitialRank(start_city);
+        while (selected_edges < num_of_cities - 1)
+        {
+            ll weight1 = coins[selected_city].first;
+            ll city1 = coins[selected_city].second;
+            ll weight2 = LONG_MAX, city2 = -1, city3 = -1;
+            if (selected_offers < specialOffer.size())
+            {
+                weight2 = specialOffer[selected_offers].first;
+                city2 = specialOffer[selected_offers].second.first;
+                city3 = specialOffer[selected_offers].second.second;
+            }
+            if (weight1 + coins[0].first < weight2)
+            {
+                ll set_city1 = uf.find(city1);
+                if (set_city1 != start_city)
+                {
+                    uf.unionSets(set_city1, start_city);
+                    totalCost += weight1 + coins[0].first;
+                    ++selected_edges;
+                }
+                ++selected_city;
+            }
+            else
+            {
+                ll set_city2 = uf.find(city2);
+                ll set_city3 = uf.find(city3);
+                if (set_city2 != set_city3)
+                {
+                    uf.unionSets(set_city2, set_city3);
+                    totalCost += weight2;
+                    ++selected_edges;
+                }
+                ++selected_offers;
+            }
+        }
+        cout << totalCost << endl;
+    };
+};
 
 int main()
 {
     int Q;
-    std::cin >> Q;
-
-    for (int q = 0; q < Q; ++q)
+    cin >> Q;
+    for(int i = 0; i < Q; ++i)
     {
-        int n, m;
-        std::cin >> n >> m;
-
-        std::vector<int> cities(n);
-        for (int i = 0; i < n; ++i)
-        {
-            std::cin >> cities[i];
-        }
-        std::vector<std::vector<int>> adjList(n, std::vector<int>(n, INT_MAX));
-        for (int i = 0; i < n; i++)
-        {
-            for (int j = i; j < n; j++)
-            {
-                adjList[i][j] = adjList[j][i] = cities[i] + cities[j];
-            }
-        }
-        for (int i = 0; i < m; ++i)
-        {
-            int x, y, z;
-            std::cin >> x >> y >> z;
-            adjList[x - 1][y - 1] = adjList[y - 1][x - 1] = std::min(adjList[x - 1][y - 1], z);
-        }
-        std::vector<std::tuple<int, int, int>> edges;
-        for (int i = 0; i < n; i++)
-        {
-            for (int j = i; j < n; ++j)
-            {
-                edges.emplace_back(i, j, adjList[i][j]);
-            }
-        }
-        std::sort(edges.begin(), edges.end(), [](const auto &a, const auto &b)
-                  { return std::get<2>(a) < std::get<2>(b); });
-        std::cout << minCost(edges, n) << std::endl;
-        // std::cout << "Minimum cost for query " << q + 1 << ": " << result << std::endl;
+        Solution solution;
+        solution.BuildRoad();
     }
-
     return 0;
 }
